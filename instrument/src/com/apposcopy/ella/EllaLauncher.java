@@ -286,7 +286,7 @@ public class EllaLauncher
 		//find the latest version
 		String latestVersion = null;
 		for(String v : buildToolsDir.list()){
-			if(latestVersion == null || v.compareTo(latestVersion) > 0){
+			if(latestVersion == null || v.compareTo(latestVersion) > 0) {
 				latestVersion = v;
 			}
 		}
