@@ -30,16 +30,14 @@ public class ParseManifest
 			UTF8ToAnsiUtils.main(new String[]{manifestFile.getAbsolutePath(), tmpFile.getAbsolutePath()});
 			this.decodedManifestFile = tmpFile;
 
-			DocumentBuilder builder =
-				DocumentBuilderFactory.newInstance().newDocumentBuilder();
+			DocumentBuilder builder = DocumentBuilderFactory.newInstance().newDocumentBuilder();
 			document = builder.parse(this.decodedManifestFile);
 			
 			xpath = XPathFactory.newInstance().newXPath();
 			xpath.setNamespaceContext(new PersonalNamespaceContext());
 			
 			//find package name and version
-			Node node = (Node)
-				xpath.evaluate("/manifest", document, XPathConstants.NODE);
+			Node node = (Node) xpath.evaluate("/manifest", document, XPathConstants.NODE);
 			app.setPackageName(node.getAttributes().getNamedItem("package").getNodeValue());
 			Node versionNameAttribute = node.getAttributes().getNamedItem("android:versionName");
 			if(versionNameAttribute != null) {

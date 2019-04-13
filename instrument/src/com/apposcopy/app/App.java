@@ -52,7 +52,7 @@ public class App
 		App app = new App(inputFile);
 		if(inputFile.endsWith(".apk")){			
 			app.apktoolOutDir = app.runApktool(scratchDir, apktoolJar);
-			ParseManifest pmf = new ParseManifest(new File(app.apktoolOutDir, "AndroidManifest.xml"), app);
+			ParseManifest pmf = new ParseManifest(new File(app.apktoolOutDir, "AndroidManifest-deres.xml"), app);
 			app.process(app.apktoolOutDir);
 			app.manifestFile = pmf.manifestFile();
 
@@ -120,7 +120,7 @@ public class App
 		// String apktoolOutDir_deres = scratchDir+File.separator+"apktool-out-deres";
 		String[] args = {"java", "-Xmx1g", "-ea",
 						 "-classpath", apktoolJar,
-						 "brut.apktool.Main",
+						 "brut.apktool.Main", "-r",
 						 "d", "-f", "--frame-path", scratchDir,
 						 "-o", apktoolOutDir,
 						 "-s", inputFile};
@@ -144,9 +144,9 @@ public class App
 			// 	throw new Error("Error in running apktool");
 			// }
 
-			System.out.println(Arrays.toString(args));
 			exitCode = Runtime.getRuntime().exec(args).waitFor();
 			if(exitCode != 0) {
+				System.err.println(Arrays.toString(args).replace(",", ""));
 				throw new Error("Error in running apktool");
 			}
 
@@ -173,7 +173,11 @@ public class App
 			}
 			bre.close();
 			printWriter.close();
-			p.waitFor();
+			exitCode = p.waitFor();
+			if(exitCode != 0) {
+				System.err.println(Arrays.toString(args_apkanalyzer).replace(",", ""));
+				throw new Error("Error in running apkanalyzer");
+			}
 
 			// Files.copy(
 			// 	new File(apktoolOutDir_deres + File.separator + "AndroidManifest.xml"),
