@@ -2,6 +2,7 @@ package com.apposcopy.ella.server;
 
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.nio.file.Paths;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 
@@ -20,6 +21,8 @@ public class Server
 	private static final Logger logger = Logger.getLogger(Server.class.getName());
 	private static final int BUFSIZE = 102400;
 
+	private static Map<String, Map<Integer, int[]>> mCoverageRecordMap = new HashMap<>();
+
 	private List<Worker> workers = new CopyOnWriteArrayList<>();
 	private Map<String,String> appIdToTraceId = new HashMap<>();
 	private String ellaOutDir;
@@ -30,7 +33,7 @@ public class Server
 		this.ellaOutDir = ellaOutDir;
 	}
 
-	public static void main(String[] args) throws IOException 
+	public static void main(String[] args) throws IOException
 	{
 		String ellaOutDir = args[0];
 		int port = Integer.parseInt(args[1]);
@@ -40,7 +43,76 @@ public class Server
 
 		System.exit(0);
 	}
- 
+
+	/**
+	 * 获取指定应用整体的覆盖率
+	 * @param appId	应用Hash值
+	 * @return
+	 */
+	public static double getAppMethodCoverage(String appId){
+		int[] appMCovArray = null;
+		if (mCoverageRecordMap.containsKey(appId)&&mCoverageRecordMap.get(appId).keySet().size()>0) {
+			for (int device:mCoverageRecordMap.get(appId).keySet()) {
+				int[] deviceMCovArray = mCoverageRecordMap.get(appId).get(device);
+				if (appMCovArray==null) {
+					appMCovArray = deviceMCovArray;
+				}else {
+					for (int i=0; i<deviceMCovArray.length; i++) {
+						if (deviceMCovArray[i] > 0) {
+							appMCovArray[i]+=deviceMCovArray[i];
+						}
+					}
+				}
+			}
+			int mcovered = 0;
+			if (appMCovArray != null) {
+				for (int i=0; i<appMCovArray.length; i++) {
+					if (appMCovArray[i] > 0) {
+						mcovered++;
+					}
+				}
+				return mcovered/(double)appMCovArray.length;
+			}
+		}
+		return 0;
+	}
+
+	/**
+	 * 获取指定应用指定端口的被测应用覆盖率
+	 * @param appId	应用哈希值
+	 * @param port	端口名称
+	 * @return
+	 */
+	public static double getDeviceMethodCoverage(String appId, int port) {
+		if (mCoverageRecordMap.get(appId)!=null) {
+			int mcovered = 0;
+			int[] deviceCovCoverage = mCoverageRecordMap.get(appId).get(port);
+			if (deviceCovCoverage!=null) {
+				for (int i=0; i<deviceCovCoverage.length; i++) {
+					if (deviceCovCoverage[i] > 0) {
+						mcovered++;
+					}
+				}
+				return mcovered/(double)deviceCovCoverage.length;
+			}
+		}
+		return 0;
+	}
+
+
+	private static int countLines(String file) {
+		int totalNumberOfLines = 0;
+		try {
+			LineNumberReader lineReader = new LineNumberReader(new FileReader(Paths.get(file).toFile()));
+			lineReader.skip(Long.MAX_VALUE);
+			totalNumberOfLines = lineReader.getLineNumber();
+			lineReader.close();
+		} catch (Exception ex) {
+			ex.printStackTrace();
+		}
+		return totalNumberOfLines;
+	}
+
 	public void serve(int port) throws IOException
 	{
 		System.out.println("Ella server starting at "+new SimpleDateFormat("yyyy-MM-dd-HH-mm-ss").format(new Date()));
@@ -59,7 +131,7 @@ public class Server
 					}
 				}
 			}, 0L, 5000);
-					
+
 
 		while(true){
 			try{
@@ -88,7 +160,7 @@ public class Server
 				throw new Error(e);
 			}
 		}
-		
+
 		serverSocket.close();
 	}
 
@@ -120,13 +192,13 @@ public class Server
 			this.lastReadTime = 0L;
 			System.out.println("Accepting connection from "+socket.getRemoteSocketAddress()+" at "+new SimpleDateFormat("yyyy-MM-dd-HH-mm-ss").format(new Date()));
 		}
-		
+
 		public void run()
 		{
 			int read;
 			byte[] buf = new byte[BUFSIZE];
 			int offset = 0;
-			
+
 			try{
 				do{
 					read = inputStream.read(buf, offset, buf.length - offset);
@@ -139,7 +211,7 @@ public class Server
 							collect(msg);
 							int startOfNextMessage = splitByte+4;
 							int totalRead = offset + read;
-							if(startOfNextMessage < totalRead) 
+							if(startOfNextMessage < totalRead)
 								inputStream.unread(buf, startOfNextMessage, totalRead - startOfNextMessage);
 							offset = 0;
 						} else {
@@ -165,7 +237,7 @@ public class Server
 				}
 			}
 		}
-	
+
 		void stopWork()
 		{
 			stop = true;
@@ -183,7 +255,7 @@ public class Server
 			}
 			return -1;
 		}
-	
+
 		class CoverageUpdate {
 			private String id;
 			public String getAppId() { return id; }
@@ -201,10 +273,18 @@ public class Server
 			try {
 				//System.out.println("request: "+sb.toString());
 				CoverageUpdate covUpdate = (CoverageUpdate) new Gson().fromJson(data, CoverageUpdate.class);
-				
+
 				String appId = covUpdate.getAppId();
 				String path = ellaOutDir + File.separator + appId;
 				File dir = new File(path);
+				if (!mCoverageRecordMap.containsKey(appId)) {
+					// 获取该应用的方法总数
+					int methodNumber = Server.countLines(path + File.separator + "covids");
+					Map<Integer, int[]> deviceMCoverageMap = new HashMap<>();
+					// 使用端口来区分device
+					deviceMCoverageMap.put(socket.getLocalPort(), new int[methodNumber]);
+					mCoverageRecordMap.put(appId, deviceMCoverageMap);
+				}
 				String traceId = appIdToTraceId.get(appId);
 				if(traceId == null){
 					dir.mkdir();
@@ -213,7 +293,7 @@ public class Server
 					traceId = dateFormat.format(new Date());
 					appIdToTraceId.put(appId, traceId);
 				}
-				
+
 				File datFile = new File(dir, "coverage.dat."+traceId);
 				boolean append = datFile.exists();
 				out = new BufferedWriter(new FileWriter(datFile, append));
@@ -223,6 +303,13 @@ public class Server
 				// write coverage info to file
 				out.write("#" + System.currentTimeMillis() + "\n");
 				out.write(d);
+
+				// added by Ren
+				String[] mIdList  = d.split("\n");
+				for (String mStrId:mIdList) {
+					int mid = Integer.parseInt(mStrId.trim());
+					mCoverageRecordMap.get(appId).get(socket.getLocalPort())[mid] += 1;
+				}
 
 				if(covUpdate.requestsStop()){
 					appIdToTraceId.remove(appId);
@@ -238,4 +325,5 @@ public class Server
 			}
 		}
 	}
+
 }

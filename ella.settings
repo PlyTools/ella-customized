@@ -1,3 +1,4 @@
+[default]
 # set to "true" if the instrumented app will be executed on an emulator *AND*
 # the ella server will be run on the host machine of the emulator.
 # otherwise set to "false"
@@ -14,7 +15,7 @@ ella.server.ip=127.0.0.1
 ella.server.port=23745
 
 # directory where ella stores coverage data and other stuff
-ella.outdir=ella-out
+ella.outdir=../ella-out
 
 ella.instrumentor=com.apposcopy.ella.MethodCoverageInstrumentor
 
@@ -24,7 +25,7 @@ ella.android.debug=false
 # file that list names of classes that are excluded from instrumentation
 ella.exclude=ella-exclude.txt
 
-# max heap space given to JVM running the instrumentor 
+# max heap space given to JVM running the instrumentor
 ella.instrumentor.max.heapsize=2g
 
 # max heap space given to JVM running the server

@@ -1,6 +1,5 @@
 package com.apposcopy.app;
 
-import java.lang.reflect.Array;
 import java.util.*;
 import java.util.zip.*;
 import java.io.*;
@@ -120,8 +119,8 @@ public class App
 		// String apktoolOutDir_deres = scratchDir+File.separator+"apktool-out-deres";
 		String[] args = {"java", "-Xmx1g", "-ea",
 						 "-classpath", apktoolJar,
-						 "brut.apktool.Main", "-r",
-						 "d", "-f", "--frame-path", scratchDir,
+						 "brut.apktool.Main",
+						 "d", "-r", "-f", "--frame-path", scratchDir,
 						 "-o", apktoolOutDir,
 						 "-s", inputFile};
 		String[] args_apkanalyzer = {
@@ -146,7 +145,7 @@ public class App
 
 			exitCode = Runtime.getRuntime().exec(args).waitFor();
 			if(exitCode != 0) {
-				System.err.println(Arrays.toString(args).replace(",", ""));
+				System.err.println("java -Xmx1g -ea -classpath " + apktoolJar + " brut.apktool.Main d -r -f --frame-path " + scratchDir + " -o " + apktoolOutDir + " -s " + inputFile);
 				throw new Error("Error in running apktool");
 			}
 
@@ -173,11 +172,7 @@ public class App
 			}
 			bre.close();
 			printWriter.close();
-			exitCode = p.waitFor();
-			if(exitCode != 0) {
-				System.err.println(Arrays.toString(args_apkanalyzer).replace(",", ""));
-				throw new Error("Error in running apkanalyzer");
-			}
+			p.waitFor();
 
 			// Files.copy(
 			// 	new File(apktoolOutDir_deres + File.separator + "AndroidManifest.xml"),
