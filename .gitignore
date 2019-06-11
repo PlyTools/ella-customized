@@ -1,7 +1,10 @@
 */build
 *.iml
 *.bak
-bin
+bin/ella.instrument.jar
+bin/ella.runtime.dex
+bin/ella.runtime.jar
+bin/ella.server.jar
 apps
 ella-out
 ella.settings
